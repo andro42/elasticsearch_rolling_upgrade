@@ -1,5 +1,5 @@
 # elasticsearch_rolling_upgrade
-Rolling Upgrade of Elasticsearch Cluster
+## Rolling Upgrade of Elasticsearch Cluster
 
 Bash script that performs a rolling upgrade of an Elasticsearch cluster. It's great for keeping your cluster automatically patched without downtime.
 
