@@ -3,9 +3,9 @@
 
 Bash script that performs a rolling upgrade of an Elasticsearch cluster. It's great for keeping your cluster automatically patched without downtime.
 
-Script uses ssh to connect to other nodes. It 
+Script uses ssh to connect to other nodes.
 
-It's tested with Elasticsearch version 7.15 on remises.
+It's tested with Elasticsearch version 7.15 on premise. Using this article as a guideline: https://www.elastic.co/guide/en/elasticsearch/reference/current/rolling-upgrades.html 
 
 ### Usage:
 ```bash
