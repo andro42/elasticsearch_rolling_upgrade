@@ -3,7 +3,7 @@
 # Usage: 
 #     bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" ["ignore_status"]'
 # Include script_body.sh in the same folder
-# Version: 0.3 (ignore_status)
+# Version: 0.3 (ignore_status )
 
 # Params
 NODES=$1            # Example: "es_node01 es_node02 es_node03"
