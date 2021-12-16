@@ -4,6 +4,7 @@
 URL=$1
 ES_USER=$2
 ES_PASS=$3
+OPTIONS=$4
 ###########################################
 
 # Body ####################################
@@ -16,6 +17,7 @@ NC="\033[0m"
 if [ -z "$URL" ]; then echo -e "${RED}[ERROR]:${NC} Argument ES_URL missing. Check usage."; echo; exit 1; fi;
 if [ -z "$ES_USER" ]; then echo "[WARNING]: Optional Argument ES_USER missing."; fi;
 if [ -z "$ES_PASS" ]; then echo "[WARNING]: Optional Argument ES_PASS missing."; fi; 
+if [ -z "$OPTIONS" ]; then OPTIONS="null"; fi; 
 
 # ---- Check for elasticsearch service ----------------------------------------
 echo;echo;echo -e $_{1..100}"\b="; echo "====== Testing ES connection on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
@@ -52,7 +54,12 @@ if [ $es_bool == 1 ]; then
         if [ $ES_STATUS != "green" ]; then
             # Write warning only every 10s 
             if (( $i % 10 == 0 )); then
-                echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. Waiting for green status..."
+                if [ $OPTIONS == "ignore_status" ]; then
+                    echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. [ingore_status] was set so we continue regardless..."
+                    break
+                else
+                    echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. Waiting for green status..."
+                fi
             fi
         else
             echo -e "    Elasticsearch cluster status: $ES_STATUS................. ${GREEN}[OK].${NC}"

@@ -1,15 +1,16 @@
 #!/bin/bash
 
 # Usage: 
-#     bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword"'
+#     bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" ["ignore_status"]'
 # Include script_body.sh in the same folder
-# Version: 0.2
+# Version: 0.3 (ignore_status)
 
 # Params
-NODES=$1 # Example: "es_node01 es_node02 es_node03"
-ES_URL=$2
-ES_USER=$3
-ES_PASS=$4
+NODES=$1            # Example: "es_node01 es_node02 es_node03"
+ES_URL=$2           # Example: 
+ES_USER=$3          # Example: elastic
+ES_PASS=$4          # Example: securepass
+OPTIONS=$5          # Possible values: ignore_status (do not wait for green status)
 
 # ---- Help -------------------------------------------------------------------
 echo; echo; echo -e $_{1..100}"\b=";
@@ -17,9 +18,9 @@ echo "                UPGRADE ES NODES script";echo
 echo "This script updates ES on multiple ES nodes."
 echo ""
 echo "Usage:"
-echo "    bash upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS"
+echo "    bash upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS [OPTIONS]"
 echo "Example:"
-echo '    bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" '
+echo '    bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" ["ignore_status"]'
 echo ""
 echo "Prerequisites:"
 echo "    - Debian or Redhat based Linux operating system"
@@ -52,14 +53,14 @@ for NODE in ${NODES} ; do
         # Local node
         echo "------------------------ Executing on local node [$NODE] ------------------------------------"
         sleep 2
-        bash script_body.sh "$ES_URL" "$ES_USER" "$ES_PASS" 
+        bash script_body.sh "$ES_URL" "$ES_USER" "$ES_PASS" "$OPTIONS"
         echo "------------------------ Completed script on local node [$NODE] -----------------------------"
         sleep 2
     else
         # Remote node
         echo "------------------------ Connecting to node [$NODE] -----------------------------------------"
         sleep 2
-        ssh ${NODE} 'bash -s' < script_body.sh "$ES_URL" "$ES_USER" "$ES_PASS"
+        ssh ${NODE} 'bash -s' < script_body.sh "$ES_URL" "$ES_USER" "$ES_PASS" "$OPTIONS"
         echo "------------------------ Disconnecting from node [$NODE] ------------------------------------"
         sleep 2
     fi
