@@ -2,9 +2,10 @@
 
 # Params ##################################
 URL=$1
-ES_USER=$2
-ES_PASS=$3
-OPTIONS=$4
+REMOTE=$2
+ES_USER=$3
+ES_PASS=$4
+OPTIONS=$5
 ###########################################
 
 # Body ####################################
@@ -15,6 +16,7 @@ NC="\033[0m"
 
 # ---- Check for arguments ----------------------------------------------------
 if [ -z "$URL" ]; then echo -e "${RED}[ERROR]:${NC} Argument ES_URL missing. Check usage."; echo; exit 1; fi;
+if [ -z "$REMOTE" ]; then echo -e "${RED}[ERROR]:${NC} Argument REMOTE missing."; echo; exit 1; fi;
 if [ -z "$ES_USER" ]; then echo "[WARNING]: Optional Argument ES_USER missing."; fi;
 if [ -z "$ES_PASS" ]; then echo "[WARNING]: Optional Argument ES_PASS missing."; fi; 
 if [ -z "$OPTIONS" ]; then OPTIONS="null"; fi; 
@@ -51,19 +53,24 @@ if [ $es_bool == 1 ]; then
     for i in {0..600}; do
         ES_STATUS=$(curl -s -k -u "$ES_USER:$ES_PASS" -H "Content-Type: application/json" "$URL/_cluster/health?pretty" \
             | grep status | awk '{ print $3 }' | tr -d '"' | tr -d ',')
-        if [ $ES_STATUS != "green" ]; then
+        if [[ $ES_STATUS == "green" || $ES_STATUS == "503" ]]; then  # 503 - master_not_discovered
+            echo -e "    Elasticsearch cluster status: $ES_STATUS................. ${GREEN}[OK].${NC}"
+            break
+        elif [[ $OPTIONS =~ "status_ignore" ]]; then
+            echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. [ingore_status] was set so we continue regardless..."
+            sleep 3
+            break
+        else 
             # Write warning only every 10s 
             if (( $i % 10 == 0 )); then
-                if [ $OPTIONS == "ignore_status" ]; then
-                    echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. [ingore_status] was set so we continue regardless..."
+                if [[ $OPTIONS =~ "status_yellow" && $ES_STATUS == "yellow" ]]; then
+                    echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. [status_yellow] was set so we continue regardless..."
+                    sleep 3
                     break
                 else
                     echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. Waiting for green status..."
                 fi
             fi
-        else
-            echo -e "    Elasticsearch cluster status: $ES_STATUS................. ${GREEN}[OK].${NC}"
-            break
         fi
         sleep 1
     done
@@ -165,11 +172,25 @@ elif [[ -f /etc/centos-release ]]; then
 else
     echo -e "    ${RED}ERROR:${NC} Unkown Operating System. Continuoing to start ES services..."; echo
 fi
+sudo systemctl daemon-reload
 sleep 1
+
+# ---- System Reboot if set in Options ---------------------------------
+if [[ $OPTIONS =~ "reboot"  ]]; then
+    echo;echo;echo -e $_{1..100}"\b="; echo "====== Rebooting the system on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    # Reboot only remote servers.
+    if [ $REMOTE == "remote" ]; then 
+        echo -e "    [REBOOT]: System will ${RED}reboot${NC} in 10 seconds. Press CTRL+C to cancel."
+        sleep 10
+        sudo reboot
+    else
+        echo "    [WARNING]: Option [reboot] was set, but this is local server. You need to reboot manualy after script completion."
+        sleep 2
+    fi
+fi
 
 # ---- Starting ES and related services ---------------------------------------
 echo;echo;echo -e $_{1..100}"\b="; echo "====== Starting ES and related services on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
-sudo systemctl daemon-reload
 if [ -f "/etc/init.d/elasticsearch" ]; then
     echo -n "    Starting elasticsearch service.........."
     sudo systemctl start elasticsearch.service \
