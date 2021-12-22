@@ -3,7 +3,7 @@
 # Usage: 
 #     bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" ["ignore_status"]'
 # Include script_body.sh in the same folder
-# Version: 0.4 (reboot)
+# Version: 0.5 (log to file)
 
 # Params
 NODES=$1            # Example: "es_node01 es_node02 es_node03"
@@ -16,7 +16,8 @@ OPTIONS=$5          # Possible values:
                     #   reboot
 
 # ---- Help -------------------------------------------------------------------
-echo; echo; echo -e $_{1..100}"\b=";
+echo; echo; 
+echo "===================================================================================================="
 echo "                UPGRADE ES NODES script";echo
 echo "This script updates ES on multiple ES nodes."
 echo ""
@@ -41,21 +42,45 @@ echo ""
 echo "It uses ssh to connect to nodes. Use command 'ssh-keygen; ssh-copy-id userid@hostname' to avoid typing password for each node"
 echo;echo "by Andrej Zevnik @2021"
 echo "Version 0.4"
-echo -e $_{1..100}"\b=";echo;echo
+echo "===================================================================================================="
+echo;echo
 sleep 2
 
 # ---- Global vars ------------------------------------------------------------
 GREEN="\033[0;32m"
 RED="\033[0;31m"
+YELLOW="\033[0;33m"
 NC="\033[0m"
+LOGFILE="run.log"
+
+# ---- Logging function -------------------------------------------------------
+echolog () {
+    local msg=$1
+    local echo_opt=$2
+    local init=$3
+
+    if [ "$init" == "init" ]; then
+        echo > $LOGFILE
+    fi
+    if [ "$echo_opt" == "-e" ]; then
+        echo -e "${msg}" | tee -a $LOGFILE  #; echo | tee -a $LOGFILE
+    else
+        echo "${msg}" | tee -a $LOGFILE
+    fi
+    return 0
+}
 
 # ---- Check for arguments and script file ------------------------------------
-if [[ ! -f script_body_1.sh ]]; then  echo -e "${RED}[ERROR]:${NC} File script_body_1.sh missing. Check usage."; echo; exit 1; fi;
-if [[ ! -f script_body_2.sh ]]; then  echo -e "${RED}[ERROR]:${NC} File script_body_2.sh missing. Check usage."; echo; exit 1; fi;
-if [ -z "$NODES" ];   then echo -e "${RED}[ERROR]:${NC} Argument NODES missing. Check usage."; echo; exit 1; fi;
-if [ -z "$ES_URL" ];  then echo -e "${RED}[ERROR]:${NC} Argument ES_URL missing. Check usage."; echo; exit 1; fi;
-if [ -z "$ES_USER" ]; then echo "[WARNING]: Optional Argument ES_USER missing."; echo; fi;
-if [ -z "$ES_PASS" ]; then echo "[WARNING]: Optional Argument ES_PASS missing."; echo; fi; 
+echolog "====================================================================================================" "--" "init"
+echolog "               Starting script [$(date)]"
+echolog "===================================================================================================="
+echolog ""
+if [[ ! -f script_body_1.sh ]]; then  echolog "${RED}[ERROR]:${NC} File script_body_1.sh missing. Check usage." "-e"; exit 1; fi;
+if [[ ! -f script_body_2.sh ]]; then  echolog "${RED}[ERROR]:${NC} File script_body_2.sh missing. Check usage." "-e"; exit 1; fi;
+if [ -z "$NODES" ];   then echolog "${RED}[ERROR]:${NC} Argument NODES missing. Check usage." "-e"; exit 1; fi;
+if [ -z "$ES_URL" ];  then echolog "${RED}[ERROR]:${NC} Argument ES_URL missing. Check usage." "-e"; exit 1; fi;
+if [ -z "$ES_USER" ]; then echolog "[WARNING]: Optional Argument ES_USER missing."; echolog; fi;
+if [ -z "$ES_PASS" ]; then echolog "[WARNING]: Optional Argument ES_PASS missing."; echolog; fi; 
 
 # ---- Shell Options ----------------------------------------------------------
 shopt -s nocasematch
@@ -64,40 +89,50 @@ shopt -s nocasematch
 for NODE in ${NODES} ; do
     if [[ $NODE == $(hostname) || $NODE == $(hostname -s) ]]; then 
         # Local node
-        echo "------------------------ Executing on local node [$NODE] ------------------------------------"
+        echolog "------------------------ Executing on local node [$NODE] ------------------------------------"
         sleep 2
-        bash script_body_1.sh "$ES_URL" "local" "$ES_USER" "$ES_PASS" "$OPTIONS"
-        echo "------------------------ Completed script on local node [$NODE] -----------------------------"
+        bash script_body_1.sh "$ES_URL" "local" "$ES_USER" "$ES_PASS" "$OPTIONS" | tee -a $LOGFILE
+        echolog "------------------------ Completed script on local node [$NODE] -----------------------------"
         sleep 2
     else
         # Remote node
-        echo "------------------------ Connecting to node [$NODE] -----------------------------------------"
+        echolog "------------------------ Connecting to node [$NODE] -----------------------------------------"
         sleep 2
         # Problems with interactive commands like read
         # ssh ${NODE} 'bash -s' < script_body.sh "$ES_URL" "$ES_USER" "$ES_PASS" "$OPTIONS"
-        ssh ${NODE} -t bash -c "$(printf "%q" "$(< script_body_1.sh )")" -- "$ES_URL" "remote" "$ES_USER" "$ES_PASS" "$OPTIONS"
+        ssh ${NODE} -t bash -c "$(printf "%q" "$(< script_body_1.sh )")" -- "$ES_URL" "remote" "$ES_USER" "$ES_PASS" "$OPTIONS" | tee -a $LOGFILE
         # If [reboot] was set
         if [[ $OPTIONS =~ "reboot"  ]]; then
-            echo "    [REBOOT]: Waiting for node: [${NODE}] to reboot..."
+            echolog "    [REBOOT]: Waiting for node: [${NODE}] to reboot..."
             sleep 5
             until (echo > "/dev/tcp/${NODE}/22") >/dev/null 2>&1; do
                 sleep 3 
-                echo "    [REBOOT]: Waiting for port 22 on node [${NODE}] to open..."
+                echolog "    [REBOOT]: Waiting for port 22 on node [${NODE}] to open..."
             done
-            echo "    [REBOOT]: Port 22 on node [${NODE}] opened. Waiting 10s to connect..."
+            echolog "    [REBOOT]: Port 22 on node [${NODE}] ${GREEN}opened${NC}. Waiting 10s to connect..." "-e"
             sleep 10
-            echo "    [REBOOT]: Reconnecting SSH and executing commands after reboot..."
+            echolog "    [REBOOT]: Reconnecting SSH and executing commands after reboot..."
             sleep 2
-            ssh ${NODE} -t bash -c "$(printf "%q" "$(< script_body_2.sh )")" -- "$ES_URL" "$ES_USER" "$ES_PASS" "$OPTIONS"
+            ssh ${NODE} -t bash -c "$(printf "%q" "$(< script_body_2.sh )")" -- "$ES_URL" "$ES_USER" "$ES_PASS" "$OPTIONS" | tee -a $LOGFILE
         fi
-        echo "------------------------ Disconnecting from node [$NODE] ------------------------------------"
+        echolog "------------------------ Disconnecting from node [$NODE] ------------------------------------"
+        echolog ""
         sleep 2
     fi
 done
 
 # ---- Finaly -----------------------------------------------------------------
+echolog; echolog
+echolog "===================================================================================================="
+echolog "                            Main script ${GREEN}COMPLETED${NC}. " "-e"
+echolog "===================================================================================================="
+echolog; echolog
+# echo "Press [1] to view run.log. Press any other key to finish..."
+read -s -n 1 -p "Press [1] to view run.log. Press any other key to finish..."  key
 echo; echo
-echo -e $_{1..100}"\b="
-echo "                            Main script COMPLETED. "
-echo -e $_{1..100}"\b="
-echo; echo
+if [[ "$key" == "1" ]]; then
+    echo "[1] was pressed. Starting less viewer. Press [q] to exit program..."
+    sleep 3
+    less -r $LOGFILE
+fi
+

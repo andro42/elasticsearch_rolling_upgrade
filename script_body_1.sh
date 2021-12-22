@@ -12,6 +12,7 @@ OPTIONS=$5
 NODE_NAME=$(hostname)
 GREEN="\033[0;32m"
 RED="\033[0;31m"
+YELLOW="\033[0;33m"
 NC="\033[0m"
 
 # ---- Check for arguments ----------------------------------------------------
@@ -22,7 +23,10 @@ if [ -z "$ES_PASS" ]; then echo "[WARNING]: Optional Argument ES_PASS missing.";
 if [ -z "$OPTIONS" ]; then OPTIONS="null"; fi; 
 
 # ---- Check for elasticsearch service ----------------------------------------
-echo;echo;echo -e $_{1..100}"\b="; echo "====== Testing ES connection on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+echo ""
+echo "===================================================================================================="
+echo "====== Testing ES connection on node [$NODE_NAME]"
+echo "===================================================================================================="
 if [ -f "/etc/init.d/elasticsearch" ]; then 
     es_bool=1 
 else 
@@ -48,16 +52,25 @@ sleep 1
 
 # ---- Wait for ES status green  ----------------------------------------------
 if [ $es_bool == 1 ]; then 
-    echo;echo;echo -e $_{1..100}"\b="; echo "====== Checking for ES Cluster Status on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    echo;echo
+    echo "===================================================================================================="
+    echo "====== Checking for ES Cluster Status on node [$NODE_NAME]"
+    echo "===================================================================================================="
+    key=""
     # Wait for 10 min checkin for green status
     for i in {0..600}; do
         ES_STATUS=$(curl -s -k -u "$ES_USER:$ES_PASS" -H "Content-Type: application/json" "$URL/_cluster/health?pretty" \
             | grep status | awk '{ print $3 }' | tr -d '"' | tr -d ',')
-        if [[ $ES_STATUS == "green" || $ES_STATUS == "503" ]]; then  # 503 - master_not_discovered
+        if [[ $ES_STATUS == "green" ]]; then  # 503 - master_not_discovered
             echo -e "    Elasticsearch cluster status: $ES_STATUS................. ${GREEN}[OK].${NC}"
             break
         elif [[ $OPTIONS =~ "status_ignore" ]]; then
             echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. [ingore_status] was set so we continue regardless..."
+            sleep 3
+            break
+        elif [ $ES_STATUS == "503" ]; then
+            echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS - master_not_discovered."
+            read -n 1 -s -r -p "    Press any key to continue executing script...."
             sleep 3
             break
         else 
@@ -68,17 +81,27 @@ if [ $es_bool == 1 ]; then
                     sleep 3
                     break
                 else
-                    echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. Waiting for green status..."
+                    echo "    [WARNING]: Elasticsearch cluster status: $ES_STATUS. Waiting for green status. Press [c] to override and continue."
                 fi
             fi
         fi
-        sleep 1
+        #sleep 1
+        # Check for key press to continue script
+        read -s -n 1 -t 1  key
+        if [[ $key == "c" || $key == "C" ]]; then
+            echo "    [c] was pressed. Continue script execution in 5 seconds..."
+            sleep 5
+            break
+        fi
     done
     sleep 1
 fi
 
 # ---- Check for update and check OS  -----------------------------------------
-echo;echo;echo -e $_{1..100}"\b="; echo "====== Checking for updates on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+echo;echo;
+echo "===================================================================================================="
+echo "====== Checking for updates on node [$NODE_NAME]"
+echo "===================================================================================================="
 # Check which OS
 if [[ -f /etc/debian_version ]]; then 
     sudo apt update
@@ -92,7 +115,10 @@ sleep 2
 
 # ---- Elastic: Disable Replica Alocation and Flush ---------------------------
 if [ $es_bool == 1 ]; then 
-    echo;echo;echo -e $_{1..100}"\b="; echo "====== Elastic: Disable Replica Alocation and Flush on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    echo;echo;
+    echo "===================================================================================================="
+    echo "====== Elastic: Disable Replica Alocation and Flush on node [$NODE_NAME]"
+    echo "===================================================================================================="
     # Disable Replica Alocation
     echo -n "    Starting Disable Replica Alocation......"
     res=$(curl -s -X PUT -k -u "$ES_USER:$ES_PASS" -H "Content-Type: application/json" -o /dev/null -w "%{http_code}" "$URL/_cluster/settings?pretty" -d'{"persistent": {"cluster.routing.allocation.enable": "primaries"}}' )
@@ -116,7 +142,10 @@ if [ $es_bool == 1 ]; then
 fi
 
 # ---- Stopping ES and related services ---------------------------------------
-echo;echo;echo -e $_{1..100}"\b="; echo "====== Stopping ES and related services on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+echo;echo;
+echo "===================================================================================================="
+echo "====== Stopping ES and related services on node [$NODE_NAME]"
+echo "===================================================================================================="
 if [ -f "/etc/init.d/filebeat" ]; then
     echo -n "    Stopping filebeat service..............."
     sudo systemctl stop filebeat.service \
@@ -162,7 +191,10 @@ fi
 sleep 1
 
 # ---- System update ----------------------------------------------------------
-echo;echo;echo -e $_{1..100}"\b="; echo "====== System update on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+echo;echo;
+echo "===================================================================================================="
+echo "====== System update on node [$NODE_NAME]"
+echo "===================================================================================================="
 # Check which OS
 if [[ -f /etc/debian_version ]]; then 
     #sudo apt upgrade -y
@@ -177,20 +209,27 @@ sleep 1
 
 # ---- System Reboot if set in Options ---------------------------------
 if [[ $OPTIONS =~ "reboot"  ]]; then
-    echo;echo;echo -e $_{1..100}"\b="; echo "====== Rebooting the system on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    echo;echo;
+    echo "===================================================================================================="
+    echo "====== Rebooting the system on node [$NODE_NAME]"
+    echo "===================================================================================================="
     # Reboot only remote servers.
     if [ $REMOTE == "remote" ]; then 
-        echo -e "    [REBOOT]: System will ${RED}reboot${NC} in 10 seconds. Press CTRL+C to cancel."
+        echo -e "    [REBOOT]: System will ${YELLOW}reboot${NC} in 10 seconds. Press CTRL+C to cancel."
         sleep 10
         sudo reboot
     else
-        echo "    [WARNING]: Option [reboot] was set, but this is local server. You need to reboot manualy after script completion."
+        echo -e "    ${YELLOW}[WARNING]${NC}: Option [reboot] was set, but this is local server. You need to reboot manualy after script completion."
+        echo
         sleep 2
     fi
 fi
 
 # ---- Starting ES and related services ---------------------------------------
-echo;echo;echo -e $_{1..100}"\b="; echo "====== Starting ES and related services on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+echo;echo;
+echo "===================================================================================================="
+echo "====== Starting ES and related services on node [$NODE_NAME]"
+echo "===================================================================================================="
 if [ -f "/etc/init.d/elasticsearch" ]; then
     echo -n "    Starting elasticsearch service.........."
     sudo systemctl start elasticsearch.service \
@@ -238,34 +277,45 @@ sleep 1
 
 # ---- Elastic: Enable back Replica Alocation ---------------------------------
 if [ $es_bool == 1 ]; then 
-    echo;echo;echo -e $_{1..100}"\b="; echo "====== Elastic: Enable back Replica Alocation on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    echo;echo;
+    echo "===================================================================================================="
+    echo "====== Elastic: Enable back Replica Alocation on node [$NODE_NAME]"
+    echo "===================================================================================================="
     curl -s -X PUT -k -u "$ES_USER:$ES_PASS" -H "Content-Type: application/json" "$URL/_cluster/settings?pretty" -d'{"persistent": {"cluster.routing.allocation.enable": null}}'
-    echo -e $_{1..100}"\b="; 
+    echo "===================================================================================================="
     sleep 1
 fi
 
 # ---- Nginx: Safety restart --------------------------------------------------
 if [ -f "/etc/init.d/nginx" ]; then
-    echo;echo;echo -e $_{1..100}"\b="; echo "====== Nginx: Safety restart on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    echo;echo;
+    echo "===================================================================================================="
+    echo "====== Nginx: Safety restart on node [$NODE_NAME]"
+    echo "===================================================================================================="
     echo -n "    Restarting nginx service................"
     sudo systemctl restart nginx  \
         && echo -e "${GREEN} [OK]. ${NC}" \
         || echo -e "${RED} [ERROR]. ${NC}"
-    echo -e $_{1..100}"\b="; 
+    echo "===================================================================================================="
     sleep 1
 fi
 
 # ---- Get ES Health ----------------------------------------------------------
 if [ $es_bool == 1 ]; then 
-    echo;echo;echo -e $_{1..100}"\b="; echo "====== Get ES Health on node [$NODE_NAME]"; echo -e $_{1..100}"\b=";
+    echo;echo;
+    echo "===================================================================================================="
+    echo "====== Get ES Health on node [$NODE_NAME]"
+    echo "===================================================================================================="
     curl -s -k -u "$ES_USER:$ES_PASS" -H "Content-Type: application/json" "$URL/_cluster/health?pretty" 
     sleep 1
 fi
 
 # ---- Finish -----------------------------------------------------------------
-echo -e $_{1..100}"\b="; 
-echo; echo; echo -e $_{1..100}"\b="; echo -e "    ${GREEN}Upgrade complete${NC} on node [$NODE_NAME]. Check above for status of upgrade.";
-echo -e $_{1..100}"\b="; 
-echo; echo; echo "------------------ Waiting 20s to disconnect from node [$NODE_NAME]. You can CTRL-c to speed-up.... "
-sleep 20
+echo "===================================================================================================="
+echo; echo; 
+echo "===================================================================================================="
+echo -e "    ${GREEN}Upgrade complete${NC} on node [$NODE_NAME]. Check above for status of upgrade.";
+echo "===================================================================================================="
+echo; echo; echo "------------------ Waiting 10s to disconnect from node [$NODE_NAME].... "
+sleep 10
 # Body End ############################
