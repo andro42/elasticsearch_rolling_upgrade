@@ -7,13 +7,19 @@ Script uses ssh to connect to other nodes.
 
 It's tested with Elasticsearch version 7.15 on premise. Using this article as a guideline: https://www.elastic.co/guide/en/elasticsearch/reference/current/rolling-upgrades.html 
 
+### Install:
+```bash
+git clone https://github.com/andro42/elasticsearch_rolling_upgrade.git
+sudo chmod u+x,g+x upgrade_elasticsearch.sh
+```
+
 ### Usage:
 ```bash
-bash upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS [OPTIONS]
+./upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS [OPTIONS]
 ```
 Example:
 ```bash
-bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" "status_yellow,reboot"
+./upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" "status_yellow,reboot"
 ```
 
 **Arguments:**
