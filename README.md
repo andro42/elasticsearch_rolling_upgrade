@@ -7,14 +7,31 @@ Script uses ssh to connect to other nodes.
 
 It's tested with Elasticsearch version 7.15 on premise. Using this article as a guideline: https://www.elastic.co/guide/en/elasticsearch/reference/current/rolling-upgrades.html 
 
+### Install:
+```bash
+git clone https://github.com/andro42/elasticsearch_rolling_upgrade.git
+sudo chmod u+x,g+x upgrade_elasticsearch.sh
+```
+
 ### Usage:
 ```bash
-bash upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS
+./upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS [OPTIONS]
 ```
 Example:
 ```bash
-bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "user" "securepassword"
+./upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" "status_yellow,reboot"
 ```
+
+**Arguments:**
+   - NODES:    List of nodes. Example: "es_node01 es_node02 es_node3" or "stan_alone_node"
+   - ES_USER:  Elasticsearch user.
+   - ES_PASS:  Elasticsearch password.
+   - ES_URL:   Use localhost address. Example: "https://localhost:9200"'
+   - OPTIONS:  Optional argument. Example: "status_yellow,reboot". Possible values:
+      - status_ignore  - Do not wait for green status of the cluster
+      - status_yellow  - Wait for yellow or green status before continue
+      - reboot         - Reboot the server
+   
 
 ### Prerequisites:
 - Centos or debian based linux operating system
@@ -24,4 +41,3 @@ bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:
 ### Not yet supported features:
 - Connecting without user and pass
 - Upgrade only system packages
-- OS reboot
