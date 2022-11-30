@@ -3,7 +3,7 @@
 # Usage: 
 #     bash upgrade_elasticsearch.sh "es_node01 es_node02 es_node3" "https://localhost:9200" "elastic" "securepassword" ["ignore_status"]'
 # Include script_body.sh in the same folder
-# Version: 0.6 (single exec file)
+# Version: 0.7 (less -i on the end; metricbeat restart)
 
 # Params
 NODES=$1            # Example: "es_node01 es_node02 es_node03"
@@ -41,7 +41,7 @@ echo "    - script_body_2.sh: script that is sent to ssh session"
 echo ""
 echo "It uses ssh to connect to nodes. Use command 'ssh-keygen; ssh-copy-id userid@hostname' to avoid typing password for each node"
 echo;echo "by Andrej Zevnik @2022"
-echo "Version 0.6"
+echo "Version 0.7"
 echo "===================================================================================================="
 echo;echo
 sleep 2
@@ -559,6 +559,20 @@ ssh_commands_after_reboot () {
         sleep 1
     fi
 
+    # ---- Metricbeat: Safety restart --------------------------------------------------
+	if systemctl status "metricbeat.service" 2> /dev/null | grep -Fq "Active:"; then     
+        echo;echo;
+        echo "===================================================================================================="
+        echo "====== Metricbeat: Safety restart on node [$NODE_NAME]"
+        echo "===================================================================================================="
+        echo -n "    Restarting Metricbeat Service................"
+        sudo systemctl restart metricbeat.service  \
+            && echo -e "${GREEN} [OK]. ${NC}" \
+            || echo -e "${RED} [ERROR]. ${NC}"
+        echo "===================================================================================================="
+        sleep 1
+    fi
+
     # ---- Get ES Health ----------------------------------------------------------
     if [ $es_bool == 1 ]; then 
         echo;echo;
@@ -637,5 +651,5 @@ echo; echo
 if [[ "$key" == "1" ]]; then
     echo "[1] was pressed. Starting less viewer. Press [q] to exit less..."
     sleep 1
-    less -r $LOGFILE
+    less -ir $LOGFILE
 fi
