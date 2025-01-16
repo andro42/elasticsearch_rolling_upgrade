@@ -190,7 +190,7 @@ ssh_commands_before_reboot () {
     # Check which OS
     if [[ -f /etc/debian_version ]]; then 
         sudo apt update
-    elif [[ -f /etc/centos-release ]]; then 
+    elif [[ -f /etc/centos-release ]] | [[ -f /etc/redhat-release ]]; then 
         sudo yum check-update
     else
         echo -e "    ${RED}ERROR:${NC} Unkown Operating System."; echo
@@ -284,7 +284,7 @@ ssh_commands_before_reboot () {
     if [[ -f /etc/debian_version ]]; then 
         #sudo apt upgrade -y
         sudo apt-get -y -o DPkg::options::="--force-confdef" -o DPkg::options::="--force-confold" upgrade
-    elif [[ -f /etc/centos-release ]]; then 
+    elif [[ -f /etc/centos-release ]] | [[ -f /etc/redhat-release ]]; then 
         sudo yum update -y
     else
         echo -e "    ${RED}ERROR:${NC} Unkown Operating System. Continuoing to start ES services..."; echo
