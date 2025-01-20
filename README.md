@@ -13,6 +13,12 @@ git clone https://github.com/andro42/elasticsearch_rolling_upgrade.git
 sudo chmod u+x,g+x upgrade_elasticsearch.sh
 ```
 
+### Prepare ssh connection to all ES Servers (do it safely):
+```bash
+ssh-keygen # Optional (if not exists)
+ssh-copy-id username@es_node1
+```
+
 ### Usage:
 ```bash
 ./upgrade_elasticsearch.sh NODES ES_URL ES_USER ES_PASS [OPTIONS]
